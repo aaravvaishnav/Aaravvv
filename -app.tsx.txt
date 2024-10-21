@@ -1,0 +1,251 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { PlusCircle, CheckCircle, Circle, List, Menu, Bell, Star, X } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
+import { cn } from "@/lib/utils"
+
+type Task = {
+  id: number
+  text: string
+  completed: boolean
+  listId: number
+  dueDate: Date | null
+  isImportant: boolean
+}
+
+type TodoList = {
+  id: number
+  name: string
+}
+
+export default function EnhancedTodoApp() {
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [lists, setLists] = useState<TodoList[]>([
+    { id: 1, name: "My Day" },
+    { id: 2, name: "Important" },
+    { id: 3, name: "Planned" },
+  ])
+  const [activeList, setActiveList] = useState<number>(1)
+  const [newTask, setNewTask] = useState("")
+  const [newList, setNewList] = useState("")
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isAddTaskDialogOpen, setIsAddTaskDialogOpen] = useState(false)
+  const [taskDueDate, setTaskDueDate] = useState<string>("")
+  const [taskIsImportant, setTaskIsImportant] = useState(false)
+
+  useEffect(() => {
+    const checkAlarms = setInterval(() => {
+      const now = new Date()
+      tasks.forEach(task => {
+        if (task.dueDate && new Date(task.dueDate).getTime() === now.getTime()) {
+          playAlarm(task.isImportant)
+          alert(`Task "${task.text}" is due now!`)
+        }
+      })
+    }, 1000)
+
+    return () => clearInterval(checkAlarms)
+  }, [tasks])
+
+  const playAlarm = (isImportant: boolean) => {
+    const audio = new Audio(isImportant ? '/loud-alarm.mp3' : '/normal-alarm.mp3')
+    audio.play()
+  }
+
+  const addTask = () => {
+    if (newTask.trim() !== "") {
+      const newTaskObj: Task = {
+        id: Date.now(),
+        text: newTask,
+        completed: false,
+        listId: activeList,
+        dueDate: taskDueDate ? new Date(taskDueDate) : null,
+        isImportant: taskIsImportant
+      }
+      setTasks([...tasks, newTaskObj])
+      setNewTask("")
+      setTaskDueDate("")
+      setTaskIsImportant(false)
+      setIsAddTaskDialogOpen(false)
+    }
+  }
+
+  const toggleTask = (id: number) => {
+    setTasks(tasks.map(task => 
+      task.id === id ? { ...task, completed: !task.completed } : task
+    ))
+  }
+
+  const toggleImportant = (id: number) => {
+    setTasks(tasks.map(task => 
+      task.id === id ? { ...task, isImportant: !task.isImportant } : task
+    ))
+  }
+
+  const addList = () => {
+    if (newList.trim() !== "") {
+      setLists([...lists, { id: Date.now(), name: newList }])
+      setNewList("")
+    }
+  }
+
+  return (
+    <div className="flex h-screen bg-gray-100">
+      {/* Sidebar */}
+      <div className={cn(
+        "fixed inset-y-0 left-0 transform -translate-x-full transition duration-200 ease-in-out z-30 w-64 bg-white shadow-lg",
+        isMenuOpen && "translate-x-0"
+      )}>
+        <div className="p-4">
+          <h2 className="text-xl font-bold mb-4">Lists</h2>
+          <ul>
+            {lists.map(list => (
+              <li 
+                key={list.id} 
+                className={`cursor-pointer p-2 rounded ${activeList === list.id ? 'bg-blue-200' : ''}`}
+                onClick={() => {
+                  setActiveList(list.id)
+                  setIsMenuOpen(false)
+                }}
+              >
+                <List className="inline mr-2" size={18} />
+                {list.name}
+              </li>
+            ))}
+          </ul>
+          <div className="mt-4">
+            <Input
+              type="text"
+              placeholder="New list"
+              value={newList}
+              onChange={(e) => setNewList(e.target.value)}
+              className="mb-2"
+            />
+            <Button onClick={addList} className="w-full">
+              <PlusCircle className="mr-2" size={18} />
+              Add List
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="flex-1 p-8">
+        <header className="flex justify-between items-center mb-6">
+          <Button variant="ghost" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+            <Menu size={24} />
+          </Button>
+          <h1 className="text-3xl font-bold">{lists.find(list => list.id === activeList)?.name}</h1>
+          <div className="w-8"></div> {/* Spacer for alignment */}
+        </header>
+
+        <Dialog open={isAddTaskDialogOpen} onOpenChange={setIsAddTaskDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="mb-4">
+              <PlusCircle className="mr-2" size={18} />
+              Add Task
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add New Task</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="task" className="text-right">
+                  Task
+                </Label>
+                <Input
+                  id="task"
+                  value={newTask}
+                  onChange={(e) => setNewTask(e.target.value)}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="dueDate" className="text-right">
+                  Due Date
+                </Label>
+                <Input
+                  id="dueDate"
+                  type="datetime-local"
+                  value={taskDueDate}
+                  onChange={(e) => setTaskDueDate(e.target.value)}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="important" className="text-right">
+                  Important
+                </Label>
+                <Switch
+                  id="important"
+                  checked={taskIsImportant}
+                  onCheckedChange={setTaskIsImportant}
+                />
+              </div>
+            </div>
+            <Button onClick={addTask}>Add Task</Button>
+          </DialogContent>
+        </Dialog>
+
+        <ul className="space-y-2">
+          {tasks
+            .filter(task => task.listId === activeList)
+            .map(task => (
+              <li 
+                key={task.id} 
+                className={cn(
+                  "flex items-center p-4 bg-white rounded-lg shadow transition-all duration-200 ease-in-out",
+                  task.completed && "bg-gray-100"
+                )}
+              >
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => toggleTask(task.id)}
+                  className="mr-2"
+                >
+                  {task.completed ? (
+                    <CheckCircle className="text-green-500" size={24} />
+                  ) : (
+                    <Circle size={24} />
+                  )}
+                </Button>
+                <div className="flex-1">
+                  <p className={cn(
+                    "text-lg",
+                    task.completed && "line-through text-gray-500"
+                  )}>
+                    {task.text}
+                  </p>
+                  {task.dueDate && (
+                    <p className="text-sm text-gray-500">
+                      Due: {new Date(task.dueDate).toLocaleString()}
+                    </p>
+                  )}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => toggleImportant(task.id)}
+                  className={cn(
+                    "transition-colors duration-200",
+                    task.isImportant ? "text-yellow-500" : "text-gray-400"
+                  )}
+                >
+                  <Star size={24} />
+                </Button>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+    </div>
+  )
+}
